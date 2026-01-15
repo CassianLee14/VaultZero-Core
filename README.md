@@ -1,5 +1,5 @@
 # 🧊 VaultZero: Distributed Defense Grid
-**Operational Lead:** Jeet Upadhyaya Anand | **Architect:** Mourya Reddy Udumula
+**Operational Lead:** Jeet Anand Upadhyaya | **Architect:** Mourya Reddy Udumula
 
 ---
 
