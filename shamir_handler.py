@@ -9,19 +9,14 @@ import config
 class ShamirVault:
     @staticmethod
     async def async_write_shard(path: str, data: bytes) -> None:
-        """
-        Async write with optimized latency simulation (High-Speed LAN).
-        """
-        # Optimized: Reduced simulated latency from 50ms to 10ms for faster demos
+        """Async write with 10ms simulated latency."""
         await asyncio.sleep(0.01) 
         async with aiofiles.open(path, "w") as f:
             await f.write(hexlify(data).decode('utf-8'))
 
     @staticmethod
     def distribute_key_async(secret_key: str, filename: str, active_nodes: List[bool]) -> bool:
-        """
-        Splits master key and distributes to KEY_STORAGE nodes.
-        """
+        """Splits master key into shards and distributes to key_storage nodes."""
         try:
             key_bytes: bytes = secret_key.encode('utf-8')
             padded_key: bytes = key_bytes.ljust(16, b' ')
@@ -38,7 +33,6 @@ class ShamirVault:
             
             if tasks:
                 loop.run_until_complete(asyncio.gather(*tasks))
-            
             loop.close()
             return True
         except Exception as e: 
@@ -46,21 +40,30 @@ class ShamirVault:
 
     @staticmethod
     def reconstruct_key(filename: str, active_nodes: List[bool]) -> str:
-        """
-        Reconstructs key from KEY_STORAGE nodes if Quorum (2/3) is met.
-        """
+        """Reconstructs key and identifies missing shards across the grid."""
         shares = []
-        for i in range(3):
-            if not active_nodes[i]: 
-                continue 
+        missing_shards = []
+        node_names = ["Alpha", "Beta", "Gamma"]
 
+        for i in range(3):
             path = os.path.join(config.KEY_NODES[i], f"{filename}.key.{i}")
-            if os.path.exists(path):
+            
+            # Check if file exists physically on disk
+            if not os.path.exists(path):
+                missing_shards.append(node_names[i])
+                continue
+
+            # Only add to reconstruction if node is logically ONLINE in dashboard
+            if active_nodes[i]:
                 with open(path, "r") as f:
                     shares.append((i + 1, unhexlify(f.read().strip())))
         
+        # If any shards are physically missing, notify the user immediately
+        if missing_shards:
+            raise FileNotFoundError(f"Missing Shards Detected: Node(s) {', '.join(missing_shards)}")
+
         if len(shares) < 2: 
-            raise ValueError(f"QUORUM FAILURE: Need 2 nodes, only {len(shares)} reachable.")
+            raise ValueError(f"QUORUM FAILURE: Only {len(shares)} nodes online. Need 2.")
         
         try:
             return Shamir.combine(shares).strip().decode('utf-8')
